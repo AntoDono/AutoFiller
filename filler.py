@@ -9,11 +9,37 @@ client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 def fill_redacted_text(redacted_text):
     completion = client.chat.completions.create(
-        model="meta-llama/llama-4-maverick-17b-128e-instruct",
+        model="qwen/qwen3-32b",
         messages=[
             {
                 "role": "system",
-                "content": "**Task: Filling Redacted Medical Documents**\n\nYou will receive a redacted medical document where sensitive information is replaced with \"___\". Your task is to fill in the redacted areas with plausible personal identification information. The filled-in information should be a single word or a phrase connected with hyphens (e.g., \"John-Smith\").\n\n**Requirements:**\n\n1. Maintain the original document's format, including line breaks or the lack thereof.\n2. Return the filled-in text and the original redacted text in the following JSON format:\n```json\n{\n  \"filled\": \"...\",\n  \"redacted\": \"...\"\n}\n```\n**Example:**\n\nIf the input is: \"Patient Name: ___ ___\"\nYour output should be ONLY JSON:\n```json\n{\n  \"filled\": \"Patient Name: John-Smith\",\n  \"redacted\": \"Patient Name: ___ ___\"\n}\n```"
+                "content": "\n".join([
+                    "**Task: Filling Redacted Medical Documents**",
+                    "",
+                    "You will receive a redacted medical document where sensitive information is replaced with \"___\". Your task is to fill in the redacted areas with plausible personal identification information. The filled-in information can be a single word or phrase.",
+                    "",
+                    "**Requirements:**",
+                    "",
+                    "1. Maintain the original document's format, including line breaks or the lack thereof.",
+                    "2. Make it diverse and realistic. Use names from different ethnicities and cultures (e.g., Asian, Hispanic, Middle Eastern, African, European), varying ages, genders, and backgrounds.",
+                    "3. Return the filled-in text and the original redacted text in the following JSON format:",
+                    "```json",
+                    "{",
+                    "  \"filled\": \"...\",",
+                    "  \"redacted\": \"...\"",
+                    "}",
+                    "```",
+                    "**Example:**",
+                    "",
+                    "If the input is: \"Patient Name: ___ ___\"",
+                    "Your output should be ONLY JSON:",
+                    "```json",
+                    "{",
+                    "  \"filled\": \"Patient Name: Hubert Wolfeschlegelstein\",",
+                    "  \"redacted\": \"Patient Name: ___ ___\"",
+                    "}",
+                    "```"
+                ])
             },
             {
                 "role": "user",

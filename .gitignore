@@ -3,3 +3,4 @@ venv
 outputs
 redact.txt
 inputs
+__pycache__
