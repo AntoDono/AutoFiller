@@ -17,7 +17,7 @@ def fill_redacted_text(redacted_text):
                 "content": "\n".join([
                     "**Task: Filling Redacted Medical Documents**",
                     "",
-                    "You will receive a redacted medical document where sensitive information is replaced with \"___\". Your task is to fill in the redacted areas with plausible personal identification information and return the result in a structured format with PII mappings.",
+                    "You will receive a redacted medical document where sensitive information is replaced with \"___\". Your task is to generate plausible personal identification information to fill each blank in order.",
                     "",
                     "**Information Types to Fill:**",
                     "",
@@ -45,40 +45,19 @@ def fill_redacted_text(redacted_text):
                     "",
                     "**Requirements:**",
                     "",
-                    "1. Maintain the original document's format, including line breaks or the lack thereof.",
-                    "2. Make it diverse and realistic. Use names from different ethnicities and cultures (e.g., Asian, Hispanic, Middle Eastern, African, European), varying ages, genders, and backgrounds.",
-                    "3. Replace each filled-in piece of information with a placeholder like <<PII_1>>, <<PII_2>>, etc.",
-                    "4. Return the result in the following JSON format:",
-                    "```json",
-                    "{",
-                    "  \"mapping_text\": \"...\",",
-                    "  \"pii_mappings\": {",
-                    "    \"<<PII_1>>\": {",
-                    "      \"type\": \"NAME\",",
-                    "      \"value\": \"John Smith\"",
-                    "    },",
-                    "    \"<<PII_2>>\": {",
-                    "      \"type\": \"DATE\",",
-                    "      \"value\": \"01/15/1980\"",
-                    "    }",
-                    "  }",
-                    "}",
-                    "```",
+                    "1. Return ONLY a JSON list containing one object for each \"___\" in the text, in order of appearance",
+                    "2. Each object should have 'value' and 'type' fields",
+                    "3. Make it diverse and realistic. Use names from different ethnicities and cultures",
                     "",
                     "**Example:**",
                     "",
-                    "If the input is: \"Patient Name: ___\"",
+                    "If the input is: \"Patient Name: ___ ___\"",
                     "Your output should be ONLY JSON:",
                     "```json",
-                    "{",
-                    "  \"mapping_text\": \"Patient Name: <<PII_1>>\",",
-                    "  \"pii_mappings\": {",
-                    "    \"<<PII_1>>\": {",
-                    "      \"type\": \"NAME\",",
-                    "      \"value\": \"Hubert Wolfeschlegelstein\"",
-                    "    }",
-                    "  }",
-                    "}",
+                    "[",
+                    "  {\"value\": \"Hubert\", \"type\": \"NAME\"},",
+                    "  {\"value\": \"Wolfeschlegelstein\", \"type\": \"NAME\"}",
+                    "]",
                     "```"
                 ])
             },
@@ -96,65 +75,40 @@ def fill_redacted_text(redacted_text):
     text = text.split("</think>")[-1]
     text = text.replace("```json", "").replace("```", "")
     try:
-        parsed_json = json.loads(text)
+        filled_values_list = json.loads(text)
     except:
         print(text)
-    return parsed_json
+        return None, None, None
+    
+    # Fill the text programmatically
+    filled_text = redacted_text
+    filled_values = []
+    pii_mappings = {}
+    
+    for item in filled_values_list:
+        value = item["value"]
+        pii_type = item["type"]
+        filled_text = filled_text.replace("___", value, 1)
+        filled_values.append(value)
+        pii_mappings[value] = {"type": pii_type}
+    
+    return filled_text, pii_mappings, filled_values
 
-def evaluate_redacted(redacted_json):
-    completion = client.chat.completions.create(
-        model=MODEL,
-        messages=[
-            {
-                "role": "system",
-                "content": "\n".join([
-                    "You are an expert evaluator for PII (Personally Identifiable Information) generation quality.",
-                    "",
-                    "Your task is to evaluate whether generated PII data is realistic, consistent, and properly formatted.",
-                    "",
-                    "INPUT FORMAT:",
-                    "You will receive a JSON object with:",
-                    "- mapping_text: Text with PII placeholder tokens like <<PII_1>>, <<PII_2>>, etc.",
-                    "- pii_mappings: Dictionary mapping each token to its type and generated value",
-                    "",
-                    "EVALUATION CRITERIA:",
-                    "1. COMPLETENESS: Are all the \"___\" placeholders in the original text replaced with PII tokens?",
-                    "2. MAPPING CONSISTENCY: Does each PII token in mapping_text have a corresponding entry in pii_mappings?",
-                    "",
-                    "OUTPUT FORMAT:",
-                    "Respond with ONLY valid JSON in this exact format:",
-                    "```json",
-                    "{",
-                    "  \"passed\": true/false,",
-                    "  \"reasoning\": \"Brief 2-3 sentence explanation of your evaluation, including specific issues found or confirmation that all criteria are met\"",
-                    "}",
-                    "```",
-                    "",
-                    "Do not include any text outside the JSON block."
-                ])
-            },
-            {
-                "role": "user",
-                "content": redacted_json
-            }
-        ]
-    )
+def evaluate_redacted(filled_text):
+    # Check if there are any remaining underscores
+    has_unfilled = "___" in filled_text
     
-    text = completion.choices[0].message.content
-    text = text.split("</think>")[-1]
-    text = text.replace("```json", "").replace("```", "")
-    
-    try:
-        parsed_json = json.loads(text)
-        return parsed_json
-    except:
-        print(text)
-        return {}
+    return {
+        "passed": not has_unfilled,
+        "reasoning": f"{'All underscores have been filled' if not has_unfilled else 'There are still unfilled underscores in the text'}"
+    }
 
 def main():
     redacted_text = "Patient Name: ___ ___"
-    filled_text = fill_redacted_text(redacted_text)
+    filled_text, pii_mappings, filled_values = fill_redacted_text(redacted_text)
     print(filled_text)
+    print(pii_mappings)
+    print(filled_values)
 
 if __name__ == "__main__":
     main()
